@@ -118,7 +118,7 @@ func download(url, exportpath string) (string, error) {
 	defer resp.Body.Close()
 	// write layer content to local (temp) ZIP file:
 	lczipfile := filepath.Join(exportpath, "layer-content.zip")
-	out, err := os.Create(filepath.Join(exportpath, lczipfile))
+	out, err := os.Create(lczipfile)
 	if err != nil {
 		return "", err
 	}

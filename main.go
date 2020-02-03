@@ -1,7 +1,9 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/url"
 	"os"
@@ -17,14 +19,32 @@ import (
 )
 
 func main() {
-	numargs := len(os.Args[1:])
-	if numargs < 1 {
+	layers := flag.String("layers", "", "A comma-separated list of ARN(s) of the layer(s) you want to inspect or export.")
+	exportpath := flag.String("export", "", "[OPTIONAL] The directory path to export the layer metadata or content to, if not provided, the layer metadata will be printed to stdout, only.")
+	flag.Parse()
+	if *layers == "" {
 		log.Fatalln("Need at least one ARN of a Lambda layer, sorry :(")
 	}
-	switch numargs {
-	case 1:
-		// the ARN of the Lambda layer has to be the first argument:
-		larns := os.Args[1]
+	switch {
+	case strings.Contains(*layers, ","): // multiple layer ARNs provided
+		layerarns := strings.Split(*layers, ",")
+		err := renderall(layerarns)
+		if err != nil {
+			log.Fatalf("Can't render provided Lambda layers: %v", err)
+		}
+	default: // a single layer ARN provided
+		larns := *layers
+		if *exportpath != "" {
+			exportdir, err := ioutil.TempDir(*exportpath, "l2i")
+			if err != nil {
+				log.Fatalf("Can't create export directory: %v", err)
+			}
+			fmt.Printf("Content is at %v", exportdir)
+			// tmpfn := filepath.Join(dir, "tmpfile")
+			// if err := ioutil.WriteFile(tmpfn, content, 0666); err != nil {
+			// log.Fatalf("Can't export layer info: %v", err)
+			// }
+		}
 		// look up metadata and content of the layer:
 		linfo, larn, err := resolve(larns)
 		if err != nil {
@@ -33,11 +53,6 @@ func main() {
 		err = render(larn, linfo)
 		if err != nil {
 			log.Fatalf("Can't resolve Lambda layer location: %v", err)
-		}
-	default:
-		err := renderall(os.Args[1:])
-		if err != nil {
-			log.Fatalf("Can't render provided Lambda layers: %v", err)
 		}
 	}
 }
@@ -78,7 +93,8 @@ func renderall(larnslist []string) error {
 	fmt.Fprintln(w, "NAME\tVERSION\tDESCRIPTION\tCREATED ON\tSIZE (kB)")
 	for _, larns := range larnslist {
 		// look up metadata and content of the layer:
-		linfo, larn, err := resolve(larns)
+		laclean := strings.TrimSpace(larns)
+		linfo, larn, err := resolve(laclean)
 		if err != nil {
 			log.Fatalf("Can't diagnose Lambda layer based on the ARN %s: %v", larns, err)
 		}
@@ -91,4 +107,14 @@ func renderall(larnslist []string) error {
 	}
 	w.Flush()
 	return nil
+}
+
+func flagpresent(name string) bool {
+	found := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == name {
+			found = true
+		}
+	})
+	return found
 }

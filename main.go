@@ -1,10 +1,12 @@
 package main
 
 import (
+	"archive/zip"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -45,19 +47,11 @@ func main() {
 			log.Fatalf("Can't resolve Lambda layer location: %v", err)
 		}
 		if *exportpath != "" {
-			exportdir, err := ioutil.TempDir(*exportpath, "l2i")
+			absoluteep, err := download(*linfo.Content.Location, *exportpath)
 			if err != nil {
-				log.Fatalf("Can't create export directory: %v", err)
+				log.Fatalf("Can't export layer content: %v", err)
 			}
-			ep, err := filepath.Abs(exportdir)
-			if err != nil {
-				log.Fatalf("Can't make export directory absolute: %v", err)
-			}
-			fmt.Printf("Content exported to: %v\n", ep)
-			// tmpfn := filepath.Join(dir, "tmpfile")
-			// if err := ioutil.WriteFile(tmpfn, content, 0666); err != nil {
-			// log.Fatalf("Can't export layer info: %v", err)
-			// }
+			fmt.Printf("Content exported to: %v\n", absoluteep)
 		}
 	}
 }
@@ -114,12 +108,88 @@ func renderall(larnslist []string) error {
 	return nil
 }
 
-func flagpresent(name string) bool {
-	found := false
-	flag.Visit(func(f *flag.Flag) {
-		if f.Name == name {
-			found = true
+// download dereferences the URL and writes its content into the path provided
+func download(url, exportpath string) (string, error) {
+	// download layer content:
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	// write layer content to local (temp) ZIP file:
+	lczipfile := filepath.Join(exportpath, "layer-content.zip")
+	out, err := os.Create(filepath.Join(exportpath, lczipfile))
+	if err != nil {
+		return "", err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, resp.Body)
+	// unzip layer content:
+	lcdir := filepath.Join(exportpath, "layer-content")
+	err = unzip(lczipfile, lcdir)
+	// resulting path and clean-up:
+	ep, err := filepath.Abs(lcdir)
+	if err != nil {
+		return "", err
+	}
+	err = os.Remove(lczipfile)
+	if err != nil {
+		return "", err
+	}
+	return ep, nil
+}
+
+// unzip extracts src ZIP file into dest directory,
+// and creates the directory if it doesn't exist,
+// from https://stackoverflow.com/questions/20357223/easy-way-to-unzip-file-with-golang
+func unzip(zipfile, dest string) error {
+	r, err := zip.OpenReader(zipfile)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := r.Close(); err != nil {
+			panic(err)
 		}
-	})
-	return found
+	}()
+	os.MkdirAll(dest, 0755)
+	extractAndWriteFile := func(f *zip.File) error {
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if err := rc.Close(); err != nil {
+				panic(err)
+			}
+		}()
+		path := filepath.Join(dest, f.Name)
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(path, f.Mode())
+		} else {
+			os.MkdirAll(filepath.Dir(path), f.Mode())
+			f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+			if err != nil {
+				return err
+			}
+			defer func() {
+				if err := f.Close(); err != nil {
+					panic(err)
+				}
+			}()
+
+			_, err = io.Copy(f, rc)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	for _, f := range r.File {
+		err := extractAndWriteFile(f)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

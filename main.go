@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/arn"
@@ -24,7 +25,7 @@ func main() {
 	case 1:
 		// the ARN of the Lambda layer has to be the first argument:
 		larns := os.Args[1]
-		// look up metadata and content:
+		// look up metadata and content of the layer:
 		linfo, larn, err := resolve(larns)
 		if err != nil {
 			log.Fatalf("Can't diagnose Lambda layer based on the ARN %s: %v", larns, err)
@@ -34,7 +35,10 @@ func main() {
 			log.Fatalf("Can't resolve Lambda layer location: %v", err)
 		}
 	default:
-		log.Println("render all layers")
+		err := renderall(os.Args[1:])
+		if err != nil {
+			log.Fatalf("Can't render provided Lambda layers: %v", err)
+		}
 	}
 }
 
@@ -58,8 +62,7 @@ func render(larn arn.ARN, linfo *lambda.GetLayerVersionByArnOutput) error {
 	fmt.Printf("Version: %v\n", *linfo.Version)
 	fmt.Printf("Description: %v\n", *linfo.Description)
 	fmt.Printf("Created on: %v\n", *linfo.CreatedDate)
-	p := message.NewPrinter(language.English)
-	p.Printf("Size: %v kB\n", *linfo.Content.CodeSize/1024)
+	message.NewPrinter(language.English).Printf("Size: %v kB\n", *linfo.Content.CodeSize/1024)
 	lloc, err := url.Parse(*linfo.Content.Location)
 	if err != nil {
 		return err
@@ -67,4 +70,23 @@ func render(larn arn.ARN, linfo *lambda.GetLayerVersionByArnOutput) error {
 	q := lloc.Query()
 	fmt.Printf("Location: %v://%v%v?versionId=%v\n", lloc.Scheme, lloc.Host, lloc.Path, q.Get("versionId"))
 	return nil
+}
+
+func renderall(larnslist []string) error {
+	w := tabwriter.NewWriter(os.Stdout, 0, 1, 2, ' ', 0)
+	fmt.Fprintln(w, "NAME\tVERSION\tDESCRIPTION\tCREATED ON\tSIZE (kB)")
+	for _, larns := range larnslist {
+		// look up metadata and content of the layer:
+		linfo, larn, err := resolve(larns)
+		if err != nil {
+			log.Fatalf("Can't diagnose Lambda layer based on the ARN %s: %v", larns, err)
+		}
+		lname := fmt.Sprintf("%v\t", strings.Split(larn.Resource, ":")[1])
+		lversion := fmt.Sprintf("%d\t", *linfo.Version)
+		ldesc := fmt.Sprintf("%v\t", *linfo.Description)
+		lcreatedon := fmt.Sprintf("%v\t", *linfo.CreatedDate)
+		lsize := message.NewPrinter(language.English).Sprintf("%v", *linfo.Content.CodeSize/1024)
+		fmt.Fprintln(w, lname+lversion+ldesc+lcreatedon+lsize)
+	}
+	w.Flush()
 }

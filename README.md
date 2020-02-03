@@ -55,5 +55,5 @@ Description: Git 2.25.0 and openssh binaries
 Created on: 2020-01-13T20:41:57.917+0000
 Size: 17,456 kB
 Location: https://awslambda-eu-west-1-layers.s3.eu-west-1.amazonaws.com/snapshots/553035198032/git-c86b3b6b-1ff4-48e2-bdc3-3721ae076147?versionId=YhboGnC0BP6h5jlTaS2jUxyeZxXFBQU3
-Content exported to: ./l2i276617631/
+Content exported to: /Users/exampleuser/tmp/l2i087249409
 ```

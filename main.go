@@ -72,6 +72,7 @@ func render(larn arn.ARN, linfo *lambda.GetLayerVersionByArnOutput) error {
 	return nil
 }
 
+// renderall displays tabular infos about multiple Lambda layers
 func renderall(larnslist []string) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 1, 2, ' ', 0)
 	fmt.Fprintln(w, "NAME\tVERSION\tDESCRIPTION\tCREATED ON\tSIZE (kB)")
@@ -89,4 +90,5 @@ func renderall(larnslist []string) error {
 		fmt.Fprintln(w, lname+lversion+ldesc+lcreatedon+lsize)
 	}
 	w.Flush()
+	return nil
 }

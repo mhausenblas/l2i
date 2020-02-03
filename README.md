@@ -5,7 +5,17 @@ For examples of layer ARNs, see the ones listed on [mthenw/awesome-layers](https
 
 ## Install
 
-Download the binaries.
+Download the [latest binary](https://github.com/mhausenblas/l2i/releases/latest) for Linux (Intel or Arm), macOS, or Windows.
+
+For example, to install `l2i` from binary on macOS you could do the following:
+
+```sh
+curl -L https://github.com/mhausenblas/l2i/releases/latest/download/l2i_darwin_amd64.tar.gz \
+    -o l2i.tar.gz && \
+    tar xvzf l2i.tar.gz l2i && \
+    mv l2i /usr/local/bin && \
+    rm l2i*
+```
 
 ## Use
 

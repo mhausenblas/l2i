@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/tabwriter"
 
@@ -34,17 +35,6 @@ func main() {
 		}
 	default: // a single layer ARN provided
 		larns := *layers
-		if *exportpath != "" {
-			exportdir, err := ioutil.TempDir(*exportpath, "l2i")
-			if err != nil {
-				log.Fatalf("Can't create export directory: %v", err)
-			}
-			fmt.Printf("Content is at %v", exportdir)
-			// tmpfn := filepath.Join(dir, "tmpfile")
-			// if err := ioutil.WriteFile(tmpfn, content, 0666); err != nil {
-			// log.Fatalf("Can't export layer info: %v", err)
-			// }
-		}
 		// look up metadata and content of the layer:
 		linfo, larn, err := resolve(larns)
 		if err != nil {
@@ -53,6 +43,21 @@ func main() {
 		err = render(larn, linfo)
 		if err != nil {
 			log.Fatalf("Can't resolve Lambda layer location: %v", err)
+		}
+		if *exportpath != "" {
+			exportdir, err := ioutil.TempDir(*exportpath, "l2i")
+			if err != nil {
+				log.Fatalf("Can't create export directory: %v", err)
+			}
+			ep, err := filepath.Abs(exportdir)
+			if err != nil {
+				log.Fatalf("Can't make export directory absolute: %v", err)
+			}
+			fmt.Printf("Content exported to: %v\n", ep)
+			// tmpfn := filepath.Join(dir, "tmpfile")
+			// if err := ioutil.WriteFile(tmpfn, content, 0666); err != nil {
+			// log.Fatalf("Can't export layer info: %v", err)
+			// }
 		}
 	}
 }

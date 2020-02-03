@@ -19,10 +19,12 @@ curl -L https://github.com/mhausenblas/l2i/releases/latest/download/l2i_darwin_a
 
 ## Use
 
+### Plain metadata inspection
+
 If you want to inspect a single AWS Lambda layer, simply provide the ARN to `l2i` like so:
 
 ```sh
-$ l2i arn:aws:lambda:eu-west-1:553035198032:layer:git:10
+$ l2i --layers arn:aws:lambda:eu-west-1:553035198032:layer:git:10
 Name: git
 Version: 10
 Description: Git 2.25.0 and openssh binaries
@@ -31,12 +33,27 @@ Size: 17,456 kB
 Location: https://awslambda-eu-west-1-layers.s3.eu-west-1.amazonaws.com/snapshots/553035198032/git-c86b3b6b-1ff4-48e2-bdc3-3721ae076147?versionId=YhboGnC0BP6h5jlTaS2jUxyeZxXFBQU3
 ```
 
-For multiple layers, `l2i` will provide a tabular overview:
+You can also inspect multiple layers at once, using a comma-separated list and `l2i` will provide a tabular overview:
 
 ```sh
-$ l2i arn:aws:lambda:eu-west-1:464622532012:layer:Datadog-Python37:1 \
-      arn:aws:lambda:eu-west-1:553035198032:layer:git:10
+$ l2i --layers "arn:aws:lambda:eu-west-1:464622532012:layer:Datadog-Python37:1,arn:aws:lambda:eu-west-1:553035198032:layer:git:10"
 NAME              VERSION  DESCRIPTION                      CREATED ON                    SIZE (kB)
 Datadog-Python37  1        Datadog Lambda Layer for Python  2019-05-06T18:48:17.694+0000  7,657
 git               10       Git 2.25.0 and openssh binaries  2020-01-13T20:41:57.917+0000  17,456
+```
+
+### Content inspection
+
+When the `--export` parameter is provided, `l2i` will also download the content 
+of a layer to the provided location, for example:
+
+```sh
+$ l2i --layers arn:aws:lambda:eu-west-1:553035198032:layer:git:10 --export .
+Name: git
+Version: 10
+Description: Git 2.25.0 and openssh binaries
+Created on: 2020-01-13T20:41:57.917+0000
+Size: 17,456 kB
+Location: https://awslambda-eu-west-1-layers.s3.eu-west-1.amazonaws.com/snapshots/553035198032/git-c86b3b6b-1ff4-48e2-bdc3-3721ae076147?versionId=YhboGnC0BP6h5jlTaS2jUxyeZxXFBQU3
+Content exported to: ./l2i276617631/
 ```

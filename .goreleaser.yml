@@ -1,0 +1,30 @@
+project_name: l2i
+release:
+  github:
+    owner: mhausenblas
+    name: l2i
+builds:
+  - id: l2i
+    goos:
+    - linux
+    - windows
+    - darwin
+    goarch:
+    - amd64
+    - "386"
+    - arm
+    - arm64
+    env:
+      - CGO_ENABLED=0
+      - GO111MODULE=on
+    main: .
+    ldflags: -s -w
+      -X github.com/mhausenblas/l2i/version.version=
+archives:
+  - id: l2i
+    builds:
+    - l2i
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+    - goos: windows
+      format: zip

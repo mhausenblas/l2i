@@ -1,7 +1,7 @@
 # The Lambda Layer Inspector (L2I)
 
-This CLI tool allows to inspect a [AWS Lambda Layer](https://docs.aws.amazon.com/lambda/latest/dg/configuration-layers.html) given its ARN.
-For example, see the ones listed on [mthenw/awesome-layers](https://github.com/mthenw/awesome-layers).
+This CLI tool allows to inspect one or more AWS Lambda [layer(s)](https://docs.aws.amazon.com/lambda/latest/dg/configuration-layers.html), using the layer ARN(s) as input.
+For examples of layer ARNs, see the ones listed on [mthenw/awesome-layers](https://github.com/mthenw/awesome-layers).
 
 ## Install
 

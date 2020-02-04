@@ -49,8 +49,8 @@ git               10       Git 2.25.0 and openssh binaries  2020-01-13T20:41:57.
 ### Content inspection
 
 If you provide the `--export` parameter, `l2i` will not only display metadata of
-a layer but also download its content into the provided path, under a 
-`layer-content` directory.
+a layer but also download its content into the provided path (relative or 
+absolute), under a `layer-content` directory.
 
 For example:
 

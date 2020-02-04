@@ -34,6 +34,15 @@ Description: Git 2.25.0 and openssh binaries
 Created on: 2020-01-13T20:41:57.917+0000
 Size: 17,456 kB
 Location: https://awslambda-eu-west-1-layers.s3.eu-west-1.amazonaws.com/snapshots/553035198032/git-c86b3b6b-1ff4-48e2-bdc3-3721ae076147?versionId=YhboGnC0BP6h5jlTaS2jUxyeZxXFBQU3
+
+$ l2i --layers arn:aws:lambda:eu-west-1:464622532012:layer:Datadog-Python37:1
+Name: Datadog-Python37
+Version: 1
+Description: Datadog Lambda Layer for Python
+Created on: 2019-05-06T18:48:17.694+0000
+Size: 7,657 kB
+Location: https://awslambda-eu-west-1-layers.s3.eu-west-1.amazonaws.com/snapshots/464622532012/Datadog-Python37-44fdbec2-a76c-4fb4-a3e2-be9781f035be?versionId=4vdBqcXS41OnGhs5Ml16_G31mK2mBaqM
+CompatibleRuntimes: python3.7
 ```
 
 You can also inspect multiple layers at once, using a comma-separated list and

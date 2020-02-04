@@ -49,7 +49,7 @@ func main() {
 		if *exportpath != "" {
 			absoluteep, err := download(*linfo.Content.Location, *exportpath)
 			if err != nil {
-				log.Fatalf("Can't export layer content: %v", err)
+				log.Fatalf("%v", err)
 			}
 			fmt.Printf("Content exported to: %v\n", absoluteep)
 		}
@@ -116,27 +116,36 @@ func download(url, exportpath string) (string, error) {
 		return "", err
 	}
 	defer resp.Body.Close()
+
+	// create export file path and generate absolute version of it:
+	absepathdir, err := filepath.Abs(exportpath)
+	if err != nil {
+		return "", fmt.Errorf("Can't generate absolute path of %s whilst exporting layer content: %v", absepathdir, err)
+	}
 	// write layer content to local (temp) ZIP file:
-	lczipfile := filepath.Join(exportpath, "layer-content.zip")
+	lczipfile := filepath.Join(absepathdir, "layer-content.zip")
+	os.MkdirAll(absepathdir, 0755)
 	out, err := os.Create(lczipfile)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("Can't create ZIP file %s for exporting layer content: %v", lczipfile, err)
 	}
 	defer out.Close()
 	_, err = io.Copy(out, resp.Body)
-	// unzip layer content:
-	lcdir := filepath.Join(exportpath, "layer-content")
-	err = unzip(lczipfile, lcdir)
-	// resulting path and clean-up:
-	ep, err := filepath.Abs(lcdir)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("Can't write to ZIP file %s for exporting layer content: %v", lczipfile, err)
 	}
+	// unzip layer contents into directory:
+	lcdir := filepath.Join(absepathdir, "layer-content")
+	err = unzip(lczipfile, lcdir)
+	if err != nil {
+		return "", fmt.Errorf("Can't unzip file %s for exporting layer content: %v", lczipfile, err)
+	}
+	// clean up by removing the ZIP file of the layer contents:
 	err = os.Remove(lczipfile)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("Can't delete ZIP file %s whilst exporting layer content: %v", lczipfile, err)
 	}
-	return ep, nil
+	return lcdir, nil
 }
 
 // unzip extracts src ZIP file into dest directory,

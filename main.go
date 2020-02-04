@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/zip"
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -42,7 +43,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("Can't diagnose Lambda layer based on the ARN %s: %v", larns, err)
 		}
-		err = render(larn, linfo)
+		err = render(larn, *linfo)
 		if err != nil {
 			log.Fatalf("Can't resolve Lambda layer location: %v", err)
 		}
@@ -71,18 +72,28 @@ func resolve(larns string) (*lambda.GetLayerVersionByArnOutput, arn.ARN, error) 
 }
 
 // render displays info about a single Lambda layer
-func render(larn arn.ARN, linfo *lambda.GetLayerVersionByArnOutput) error {
+func render(larn arn.ARN, linfo lambda.GetLayerVersionByArnOutput) error {
 	fmt.Printf("Name: %v\n", strings.Split(larn.Resource, ":")[1])
-	fmt.Printf("Version: %v\n", *linfo.Version)
-	fmt.Printf("Description: %v\n", *linfo.Description)
-	fmt.Printf("Created on: %v\n", *linfo.CreatedDate)
-	message.NewPrinter(language.English).Printf("Size: %v kB\n", *linfo.Content.CodeSize/1024)
-	lloc, err := url.Parse(*linfo.Content.Location)
+	fmt.Printf("Version: %v\n", aws.Int64Value(linfo.Version))
+	fmt.Printf("Description: %v\n", aws.StringValue(linfo.Description))
+	fmt.Printf("Created on: %v\n", aws.StringValue(linfo.CreatedDate))
+	message.NewPrinter(language.English).Printf("Size: %v kB\n", aws.Int64Value(linfo.Content.CodeSize)/1024)
+	lloc, err := url.Parse(aws.StringValue(linfo.Content.Location))
 	if err != nil {
 		return err
 	}
 	q := lloc.Query()
 	fmt.Printf("Location: %v://%v%v?versionId=%v\n", lloc.Scheme, lloc.Host, lloc.Path, q.Get("versionId"))
+	if aws.StringValue(linfo.LicenseInfo) != "" {
+		fmt.Printf("License: %v\n", aws.StringValue(linfo.LicenseInfo))
+	}
+	if len(linfo.CompatibleRuntimes) > 0 {
+		crs := bytes.Buffer{}
+		for _, cr := range linfo.CompatibleRuntimes {
+			crs.WriteString(aws.StringValue(cr) + " ")
+		}
+		fmt.Printf("CompatibleRuntimes: %v\n", crs.String())
+	}
 	return nil
 }
 

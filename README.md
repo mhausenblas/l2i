@@ -58,10 +58,8 @@ git               10       Git 2.25.0 and openssh binaries  2020-01-13T20:41:57.
 ### Content inspection
 
 If you provide the `--export` parameter, `l2i` will not only display metadata of
-a layer but also download its content into the provided path (relative or 
-absolute), under a `layer-content` directory.
-
-For example:
+a layer but also download its contents into the (relative or 
+absolute) provided path, for example:
 
 ```sh
 $ l2i --layers arn:aws:lambda:eu-west-1:553035198032:layer:git:10 --export .
@@ -71,10 +69,16 @@ Description: Git 2.25.0 and openssh binaries
 Created on: 2020-01-13T20:41:57.917+0000
 Size: 17,456 kB
 Location: https://awslambda-eu-west-1-layers.s3.eu-west-1.amazonaws.com/snapshots/553035198032/git-c86b3b6b-1ff4-48e2-bdc3-3721ae076147?versionId=YhboGnC0BP6h5jlTaS2jUxyeZxXFBQU3
-Content exported to: /Users/janedoe/serverless/layer-content
 
-$ tree -d layer-content/
-layer-content/
+I exported the layer's contents to: /Users/janedoe/serverless/layer-git-content
+```
+
+If you now look into the `layer-git-content` directory you should see something
+like this:
+
+```
+$ tree -d layer-git-content/
+layer-git-content/
 ├── bin
 ├── etc
 │   └── ssh
@@ -96,6 +100,15 @@ layer-content/
 17 directories
 ```
 
-Note that the `--export` parameter is only valid and has an effect if you pass
-`l2i` a single Lambda layer ARN. In other words: for multiple ARNs this parameter
-is ignored.
+You can also export multiple layers at once, like so:
+
+```sh
+$ l2i --layers "arn:aws:lambda:eu-west-1:464622532012:layer:Datadog-Python37:1,arn:aws:lambda:eu-west-1:553035198032:layer:nodejs10:20" --export layers
+NAME              VERSION  DESCRIPTION                      CREATED ON                    SIZE (kB)
+Datadog-Python37  1        Datadog Lambda Layer for Python  2019-05-06T18:48:17.694+0000  7,657
+nodejs10          20       Node.js v10.18.1 custom runtime  2020-01-10T21:32:36.590+0000  12,404
+
+I exported the layers' contents to: /Users/janedoe/serverless/layers/
+```
+
+Have fun!

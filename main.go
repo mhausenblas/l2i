@@ -30,13 +30,15 @@ func main() {
 		log.Fatalln("Need at least one ARN of a Lambda layer, sorry :(")
 	}
 	switch {
-	case strings.Contains(*layers, ","): // multiple layer ARNs provided
+	// multiple layer ARNs provided:
+	case strings.Contains(*layers, ","):
 		layerarns := strings.Split(*layers, ",")
-		err := renderall(layerarns)
+		err := renderall(layerarns, *exportpath)
 		if err != nil {
 			log.Fatalf("Can't render provided Lambda layers: %v", err)
 		}
-	default: // a single layer ARN provided
+	// a single layer ARN provided:
+	default:
 		larns := *layers
 		// look up metadata and content of the layer:
 		linfo, larn, err := resolve(larns)
@@ -47,12 +49,16 @@ func main() {
 		if err != nil {
 			log.Fatalf("Can't resolve Lambda layer location: %v", err)
 		}
+		// download the layer contents if we have an export path set:
 		if *exportpath != "" {
-			absoluteep, err := download(*linfo.Content.Location, *exportpath)
+			absoluteep, err := download(aws.StringValue(linfo.Content.Location),
+				*exportpath,
+				"layer-"+strings.TrimSpace(strings.Split(larn.Resource, ":")[1]),
+			)
 			if err != nil {
 				log.Fatalf("%v", err)
 			}
-			fmt.Printf("Content exported to: %v\n", absoluteep)
+			fmt.Printf("\nI exported the layer's contents to: %v\n", absoluteep)
 		}
 	}
 }
@@ -98,7 +104,9 @@ func render(larn arn.ARN, linfo lambda.GetLayerVersionByArnOutput) error {
 }
 
 // renderall displays tabular infos about multiple Lambda layers
-func renderall(larnslist []string) error {
+func renderall(larnslist []string, exportpath string) error {
+	downloadcompleted := make(chan bool)
+	absoluteep := []string{}
 	w := tabwriter.NewWriter(os.Stdout, 0, 1, 2, ' ', 0)
 	fmt.Fprintln(w, "NAME\tVERSION\tDESCRIPTION\tCREATED ON\tSIZE (kB)")
 	for _, larns := range larnslist {
@@ -109,18 +117,41 @@ func renderall(larnslist []string) error {
 			log.Fatalf("Can't diagnose Lambda layer based on the ARN %s: %v", larns, err)
 		}
 		lname := fmt.Sprintf("%v\t", strings.Split(larn.Resource, ":")[1])
-		lversion := fmt.Sprintf("%d\t", *linfo.Version)
-		ldesc := fmt.Sprintf("%v\t", *linfo.Description)
-		lcreatedon := fmt.Sprintf("%v\t", *linfo.CreatedDate)
-		lsize := message.NewPrinter(language.English).Sprintf("%v", *linfo.Content.CodeSize/1024)
+		lversion := fmt.Sprintf("%d\t", aws.Int64Value(linfo.Version))
+		ldesc := fmt.Sprintf("%v\t", aws.StringValue(linfo.Description))
+		lcreatedon := fmt.Sprintf("%v\t", aws.StringValue(linfo.CreatedDate))
+		lsize := message.NewPrinter(language.English).Sprintf("%v", aws.Int64Value(linfo.Content.CodeSize)/1024)
 		fmt.Fprintln(w, lname+lversion+ldesc+lcreatedon+lsize)
+		// download the layer contents in the background,
+		// if we have an export path set:
+		if exportpath != "" {
+			go func(downloadcompleted chan bool, layer, contentURL string) {
+				// log.Printf("Downloading [%s] into [%s]", layer, exportpath)
+				// log.Println("Layer URL: ", aws.StringValue(linfo.Content.Location))
+				abep, err := download(contentURL,
+					exportpath,
+					"layer-"+layer,
+				)
+				if err != nil {
+					log.Printf("%v\n", err)
+				}
+				absoluteep = append(absoluteep, abep)
+				// log.Println("Completed downloading ", layer)
+				downloadcompleted <- true
+			}(downloadcompleted, strings.Split(larn.Resource, ":")[1], aws.StringValue(linfo.Content.Location))
+		}
 	}
 	w.Flush()
+	if exportpath != "" {
+		<-downloadcompleted
+		absexp, _ := filepath.Abs(exportpath)
+		fmt.Printf("\nI exported the layers' contents to: %v\n", absexp)
+	}
 	return nil
 }
 
 // download dereferences the URL and writes its content into the path provided
-func download(url, exportpath string) (string, error) {
+func download(url, exportpath, layer string) (string, error) {
 	// download layer content:
 	resp, err := http.Get(url)
 	if err != nil {
@@ -134,7 +165,7 @@ func download(url, exportpath string) (string, error) {
 		return "", fmt.Errorf("Can't generate absolute path of %s whilst exporting layer content: %v", absepathdir, err)
 	}
 	// write layer content to local (temp) ZIP file:
-	lczipfile := filepath.Join(absepathdir, "layer-content.zip")
+	lczipfile := filepath.Join(absepathdir, layer+"-content.zip")
 	os.MkdirAll(absepathdir, 0755)
 	out, err := os.Create(lczipfile)
 	if err != nil {
@@ -146,7 +177,7 @@ func download(url, exportpath string) (string, error) {
 		return "", fmt.Errorf("Can't write to ZIP file %s for exporting layer content: %v", lczipfile, err)
 	}
 	// unzip layer contents into directory:
-	lcdir := filepath.Join(absepathdir, "layer-content")
+	lcdir := filepath.Join(absepathdir, layer+"-content")
 	err = unzip(lczipfile, lcdir)
 	if err != nil {
 		return "", fmt.Errorf("Can't unzip file %s for exporting layer content: %v", lczipfile, err)
